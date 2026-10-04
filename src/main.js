@@ -42,6 +42,20 @@ try {
 }
 
 function boot() {
+  /* ---------- перехват консоли ----------
+     three.js ругается на битые шейдеры только в devtools, а меш с нелинкуемой
+     программой просто молча не рисуется. собираем такие сообщения в счётчик. */
+
+  const glErrors = [];
+  const grab = (src) => (...a) => {
+    const s = (a || []).map((x) => (x && x.message ? x.message : String(x))).join(' ');
+    if (/Shader Error|Program Info Log|WebGLProgram|Fragment shader|Vertex shader|VALIDATE_STATUS/i.test(s)) glErrors.push(s.replace(/\s+/g, ' ').slice(0, 300));
+    src(...a);
+  };
+  console.error = grab(console.error.bind(console));
+  console.warn = grab(console.warn.bind(console));
+  let glErrNotified = false;
+
   /* ---------- режим ---------- */
   // ?quality=low / ?lite=1 — принудительно легко; ?quality=high — принудительно красиво
   const forced = (new URLSearchParams(location.search).get('quality') || '').toLowerCase();
@@ -290,6 +304,13 @@ function boot() {
       if (AUTOTEST) loadEl.style.display = 'none';
     }
 
+    // если какой-то шейдер не слинковался — честно говорим об этом один раз
+    if (!glErrNotified && glErrors.length && frame > 20) {
+      glErrNotified = true;
+      console.log('[банка] ошибок шейдеров:', glErrors.length, glErrors[0]);
+      ui.notify('Проблема с шейдерами (' + glErrors.length + '): банка работает, но часть эффектов не отрисовалась — подробности в консоли.', 7);
+    }
+
     if (AUTOTEST) autotest();
   }
 
@@ -398,6 +419,8 @@ function boot() {
         night: +world.night.toFixed(3),
         mode: (LITE ? 'lite' : 'full') + (softGL ? '/soft' : ''),
         gl: glName,
+        glErrors: glErrors.length,
+        glErrSample: glErrors.length ? glErrors[0].slice(0, 160) : '',
         probes,
         calls: renderer.info.render.calls,
         tris: renderer.info.render.triangles,

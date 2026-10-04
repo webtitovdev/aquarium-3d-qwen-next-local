@@ -22155,6 +22155,12 @@ float fbm(vec2 p){
       varying vec2 vUv; varying vec3 vWPos; varying vec3 vNrm;
       uniform float uTime, uNight;
       uniform vec3 uDeep, uSky;
+      // \u0432\u044B\u0441\u043E\u0442\u0430 \u0440\u044F\u0431\u0438: \u0444\u0443\u043D\u043A\u0446\u0438\u044F \u0434\u043E\u043B\u0436\u043D\u0430 \u0431\u044B\u0442\u044C \u043D\u0430 \u0432\u0435\u0440\u0445\u043D\u0435\u043C \u0443\u0440\u043E\u0432\u043D\u0435 \u2014 GLSL \u043D\u0435 \u0440\u0430\u0437\u0440\u0435\u0448\u0430\u0435\u0442
+      // \u0432\u043B\u043E\u0436\u0435\u043D\u043D\u044B\u0435 \u043E\u0431\u044A\u044F\u0432\u043B\u0435\u043D\u0438\u044F \u0444\u0443\u043D\u043A\u0446\u0438\u0439 \u0432\u043D\u0443\u0442\u0440\u0438 main()
+      float rippleH(vec2 q){
+        return fbm(q * 0.5 + vec2(uTime*0.25, -uTime*0.18)) * 1.4
+             + 0.35 * sin(q.x*1.3 + uTime*2.2) * sin(q.y*1.1 - uTime*1.7);
+      }
       void main(){
         bool below = !gl_FrontFacing;         // \u0441\u043C\u043E\u0442\u0440\u0438\u043C \u043D\u0430 \u043F\u043B\u0451\u043D\u043A\u0443 \u0432\u043E\u0434\u044B \u0438\u0437\u043D\u0443\u0442\u0440\u0438 \u0431\u0430\u043D\u043A\u0438
         vec3 N = normalize(below ? -vNrm : vNrm);
@@ -22163,10 +22169,8 @@ float fbm(vec2 p){
         // \u0430\u043D\u0438\u043C\u0438\u0440\u043E\u0432\u0430\u043D\u043D\u0430\u044F \u043D\u043E\u0440\u043C\u0430\u043B\u044C \u0438\u0437 \u0434\u0432\u0443\u0445 \u0441\u043B\u043E\u0451\u0432 \u0440\u044F\u0431\u0438
         vec2 p = vUv * 34.0;
         float e = 0.35;
-        float h(vec2 q){ return fbm(q * 0.5 + vec2(uTime*0.25, -uTime*0.18)) * 1.4
-                          + 0.35 * sin(q.x*1.3 + uTime*2.2) * sin(q.y*1.1 - uTime*1.7); }
-        float dx = h(p + vec2(e,0.0)) - h(p - vec2(e,0.0));
-        float dy = h(p + vec2(0.0,e)) - h(p - vec2(0.0,e));
+        float dx = rippleH(p + vec2(e,0.0)) - rippleH(p - vec2(e,0.0));
+        float dy = rippleH(p + vec2(0.0,e)) - rippleH(p - vec2(0.0,e));
         vec3 Nw = normalize(N + vec3(dx, 0.0, dy) * 0.9);
 
         float ndv = abs(dot(Nw, V));
@@ -26331,6 +26335,15 @@ canvas{display:block;touch-action:none}
     fail("<code>" + (e && e.stack ? String(e.stack).replace(/</g, "&lt;") : e) + "</code>");
   }
   function boot() {
+    const glErrors = [];
+    const grab = (src) => (...a) => {
+      const s = (a || []).map((x) => x && x.message ? x.message : String(x)).join(" ");
+      if (/Shader Error|Program Info Log|WebGLProgram|Fragment shader|Vertex shader|VALIDATE_STATUS/i.test(s)) glErrors.push(s.replace(/\s+/g, " ").slice(0, 300));
+      src(...a);
+    };
+    console.error = grab(console.error.bind(console));
+    console.warn = grab(console.warn.bind(console));
+    let glErrNotified = false;
     const forced = (new URLSearchParams(location.search).get("quality") || "").toLowerCase();
     let softGL = false;
     let glName = "?";
@@ -26348,6 +26361,7 @@ canvas{display:block;touch-action:none}
     const NO_BLOOM = /[?&]nobloom=1/.test(location.search);
     const NO_SHADOW = /[?&]noshadow=1/.test(location.search);
     const NO_MSAA = /[?&]nomsaa=1/.test(location.search);
+    const NO_TESTLINE = /[?&]notestline=1/.test(location.search);
     const START_PHASE = parseFloat(new URLSearchParams(location.search).get("phase") || "");
     const renderer = new WebGLRenderer({ antialias: false, powerPreference: "high-performance", stencil: false });
     renderer.setPixelRatio(LITE ? 1 : Math.min(window.devicePixelRatio || 1, 2));
@@ -26562,6 +26576,11 @@ canvas{display:block;touch-action:none}
         loadEl.classList.add("gone");
         if (AUTOTEST) loadEl.style.display = "none";
       }
+      if (!glErrNotified && glErrors.length && frame > 20) {
+        glErrNotified = true;
+        console.log("[\u0431\u0430\u043D\u043A\u0430] \u043E\u0448\u0438\u0431\u043E\u043A \u0448\u0435\u0439\u0434\u0435\u0440\u043E\u0432:", glErrors.length, glErrors[0]);
+        ui.notify("\u041F\u0440\u043E\u0431\u043B\u0435\u043C\u0430 \u0441 \u0448\u0435\u0439\u0434\u0435\u0440\u0430\u043C\u0438 (" + glErrors.length + "): \u0431\u0430\u043D\u043A\u0430 \u0440\u0430\u0431\u043E\u0442\u0430\u0435\u0442, \u043D\u043E \u0447\u0430\u0441\u0442\u044C \u044D\u0444\u0444\u0435\u043A\u0442\u043E\u0432 \u043D\u0435 \u043E\u0442\u0440\u0438\u0441\u043E\u0432\u0430\u043B\u0430\u0441\u044C \u2014 \u043F\u043E\u0434\u0440\u043E\u0431\u043D\u043E\u0441\u0442\u0438 \u0432 \u043A\u043E\u043D\u0441\u043E\u043B\u0438.", 7);
+      }
       if (AUTOTEST) autotest();
     }
     function tick() {
@@ -26658,7 +26677,7 @@ canvas{display:block;touch-action:none}
         actions.daynight();
       }
       if (frame >= 1) {
-        if (!testEl) {
+        if (!testEl && !NO_TESTLINE) {
           testEl = document.createElement("pre");
           testEl.id = "testout";
           testEl.style.cssText = "position:fixed;left:8px;bottom:8px;z-index:99;color:#9fe8ff;font-size:12px;margin:0;font-family:monospace;text-shadow:0 1px 2px #000";
@@ -26678,13 +26697,15 @@ canvas{display:block;touch-action:none}
           night: +world.night.toFixed(3),
           mode: (LITE ? "lite" : "full") + (softGL ? "/soft" : ""),
           gl: glName,
+          glErrors: glErrors.length,
+          glErrSample: glErrors.length ? glErrors[0].slice(0, 160) : "",
           probes,
           calls: renderer.info.render.calls,
           tris: renderer.info.render.triangles,
           progs: renderer.info.programs ? renderer.info.programs.length : -1
         };
         window.__TEST = r;
-        testEl.textContent = "TEST " + JSON.stringify(r);
+        if (testEl) testEl.textContent = "TEST " + JSON.stringify(r);
       }
     }
     requestAnimationFrame(tick);

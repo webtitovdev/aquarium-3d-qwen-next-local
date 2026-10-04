@@ -105,6 +105,12 @@ function waterSurfaceMaterial() {
       varying vec2 vUv; varying vec3 vWPos; varying vec3 vNrm;
       uniform float uTime, uNight;
       uniform vec3 uDeep, uSky;
+      // высота ряби: функция должна быть на верхнем уровне — GLSL не разрешает
+      // вложенные объявления функций внутри main()
+      float rippleH(vec2 q){
+        return fbm(q * 0.5 + vec2(uTime*0.25, -uTime*0.18)) * 1.4
+             + 0.35 * sin(q.x*1.3 + uTime*2.2) * sin(q.y*1.1 - uTime*1.7);
+      }
       void main(){
         bool below = !gl_FrontFacing;         // смотрим на плёнку воды изнутри банки
         vec3 N = normalize(below ? -vNrm : vNrm);
@@ -113,10 +119,8 @@ function waterSurfaceMaterial() {
         // анимированная нормаль из двух слоёв ряби
         vec2 p = vUv * 34.0;
         float e = 0.35;
-        float h(vec2 q){ return fbm(q * 0.5 + vec2(uTime*0.25, -uTime*0.18)) * 1.4
-                          + 0.35 * sin(q.x*1.3 + uTime*2.2) * sin(q.y*1.1 - uTime*1.7); }
-        float dx = h(p + vec2(e,0.0)) - h(p - vec2(e,0.0));
-        float dy = h(p + vec2(0.0,e)) - h(p - vec2(0.0,e));
+        float dx = rippleH(p + vec2(e,0.0)) - rippleH(p - vec2(e,0.0));
+        float dy = rippleH(p + vec2(0.0,e)) - rippleH(p - vec2(0.0,e));
         vec3 Nw = normalize(N + vec3(dx, 0.0, dy) * 0.9);
 
         float ndv = abs(dot(Nw, V));
