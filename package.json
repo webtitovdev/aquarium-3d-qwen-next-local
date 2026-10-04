@@ -1,0 +1,19 @@
+{
+  "name": "aquarium3d",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "esbuild src/main.js --bundle --format=iife --outfile=aquarium.js --target=es2020 --log-level=warning",
+    "watch": "esbuild src/main.js --bundle --format=iife --outfile=aquarium.js --target=es2020 --watch --log-level=warning",
+    "test": "node _harness.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "esbuild": "^0.28.2",
+    "three": "^0.160.1"
+  }
+}

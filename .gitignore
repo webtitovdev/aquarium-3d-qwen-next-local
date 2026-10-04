@@ -1,0 +1,16 @@
+# зависимости и сборка
+node_modules/
+
+# временные профили Chrome и отладочные артефакты headless-прогонов
+_prof*/
+_prof*
+_*.png
+_*.txt
+_*.json
+_*.html
+_test/
+.chrome/
+
+# служебное
+.DS_Store
+Thumbs.db
